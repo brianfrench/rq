@@ -10,7 +10,7 @@
     var init=function(){
       var can=document.getElementsByTagName("canvas")[0];
       wid=can.width; hei=can.height;
-      var ctx=can.getContext("2d");
+      ctx=can.getContext("2d");
       imd=ctx.createImageData(wid, hei);
       setInterval(anim,25);
     }
