@@ -1,20 +1,281 @@
-<html><head><title>a</title>
-  <script>
-    var imd,ctx,wid,hei;
-    var anim=function(){
-      var p32=new Int32Array(imd.data.buffer);
-      var j=Date.now();
-      for(var i=p32.length-1; i>=0; i--)p32[i]=0xff000000|0x10101*((i&255)^(j+i>>8));
-      ctx.putImageData(imd,0,0);
+<!doctype HTML>
+<html>
+<meta name="viewport" content="width=device-width, user-scalable=no"/>
+<head>
+<title>rq</title>
+<style>
+body {margin:0;width:100%;height:100%;position:absolute;}
+canvas {margin:0;}
+</style>
+<script>
+var doa=0, dob=90, dog=0;
+var body, ahand, ctx, bkgi, bkgp, cani, canp, wid, hei;
+var fr=0, ms0=0, ms1=0;
+
+
+var gcx=0, gcy=0;
+
+
+var rq=function(ver, clr, p, maxa){
+    //var sx0=5, sx1=wid-5, sy0=5, sy1=hei-5, ppl=~~wid;
+    var mgn=2;
+    var sx0=mgn, sx1=wid-mgn, sy0=mgn, sy1=hei-mgn, ppl=~~wid;
+    
+    var i,j,k, m,x=0,y=0,px,py, a, rn=0x3141592,c,
+        x0,y0,x1,y1, x2,y2,x3,y3, m01,m23,b01,b23, t, nx,ny, m0,m1, i0,i1, l;
+    
+    var si=0, si0, si1, msi=100,
+        vs=new Float64Array(msi*4*8),
+        cs=new Int32Array(msi*4*3),
+        ens=new Int32Array(msi*4*1),
+        rns=new Int32Array(msi*4*1),
+        qi=new Int32Array(8);
+        //qv=new Float64Array(8);
+    
+    vs.set(ver);
+    cs.set([0x7777, 0x7777, 0x7777]);
+    rns[0]=rn;
+    
+    var pp=new Uint32Array(p.buffer);
+    
+    var maxi=1e6;
+    while(si>=0 && si<msi && maxi-->0){
+        en=ens[si];
+        if(en==2){
+            si--;
+            continue;
+        }
+        
+        if(en==0){
+            var b=0;
+            si0=si << 3;
+            for(i=0; i<8; i+=2, si0+=2){
+                x=vs[si0];
+                y=vs[si0 | 1];
+                if(x<sx0)b+=0x1;
+                if(x>sx1)b+=0x10;
+                if(y<sy0)b+=0x100;
+                if(y>sy1)b+=0x1000;
+            }
+            if(b==0)en=1;
+            else{
+                do{
+                    if((b&7)==4){en=2;break;}
+                }while(b>>>=4);
+            }
+            if(en==2){
+                si--;
+                continue;
+            }
+        }
+        
+        for(i=-2, a=0; i<8; i+=2){
+            j=(i&7) | si << 3;
+            px=x; py=y;
+            x=vs[j]; y=vs[j+1];
+            if(i<0)continue;
+            a+=(y - py)*(x + px);
+        }
+        if(a<0)return;
+        
+        if(a>maxa){
+            si1=si + 1 << 3;
+            for(i=0; i<8; i+=2, si0+=2){
+                x=vs[si << 3 | i];
+                y=vs[si << 3 | i | 1];
+                si0=si << 3;
+                for(j=0; j<8; j+=2, si1+=2, si0+=2){
+                    vs[si1    ]=(x + vs[si0]    )*0.5;
+                    vs[si1 | 1]=(y + vs[si0 | 1])*0.5;
+                }
+            }
+            
+            rn=rns[si];
+            rn^=(rn >>> 19 & 0x7fff)*(rn >> 7 & 0x3fff) + 0x9877665;
+            
+            
+            /*si1=si*3 + 3;
+            for(i=0; i<4; i++){
+                si0=si*3;
+                for(j=0; j<3; j++, si0++, si1++){
+                    m=(rn >> i*8 + j*1 & 255) << 8;
+                    cs[si1]=15*cs[si0] + m >> 4;
+                }
+            }*/
+            
+            si0=si*3;
+            for(i=0; i<3; i++, si0++){
+                a=0;
+                si1=(si + 1)*3 + i;
+                for(j=0; j<4; j++, si1+=3){
+                    m=(rn >> i + j*8 & 255) << 4;
+                    cs[si1]=m;
+                    a+=m;
+                }
+                a=(a >> 2) - cs[si0];
+                si1=(si + 1)*3 + i;
+                for(j=0; j<4; j++, si1+=3)cs[si1]-=a;
+            }
+            
+            
+            
+            for(j=1; j<5; j++){
+                ens[si + j]=en;
+                rns[si + j]=rn >>> j*3 | rn << 31-j*3 ^ 0xf1e2d3c4;
+            }
+            
+            ens[si]=2;
+            si+=4;
+        }else{
+            if(en){
+                c=0xff000000 | (cs[si*3]>>8)<<16 | (cs[si*3+1]>>8)<<8 | (cs[si*3+2]>>8);
+                
+                si0=si << 3 | 1;
+                //y0=sy1;
+                for(i=0; i<4; i++, si0+=2){
+                    m=vs[si0];
+                    if(i==0 || m < y){y=m;i0=i;}
+                    x=~~vs[si0-1];
+                }
+                si0=si << 3;
+                
+                i1=i0;
+                y3=y1=0;
+                y=y+1|0;
+                do{
+                    while(y>y1){
+                        x0=vs[(i0 << 1) + si0];
+                        y0=vs[(i0 << 1) + si0 | 1];
+                        i0=i0 - 1 & 3;
+                        x1=vs[(i0 << 1) + si0];
+                        y1=vs[(i0 << 1) + si0 | 1];
+                        
+                        if(y1<y0)break;
+                        
+                        m01=(x1 - x0)/(y1 - y0);
+                        b01=x0 - m01*y0;
+                        
+                        y0|=0;
+                        y1|=0;
+                        
+                        if(y1>sy1)y1=sy1;
+                    }
+                    if(y1<y0)break;
+                    
+                    while(y>y3){
+                        x2=vs[(i1 << 1) + si0];
+                        y2=vs[(i1 << 1) + si0 | 1];
+                        i1=i1 + 1 & 3;
+                        x3=vs[(i1 << 1) + si0];
+                        y3=vs[(i1 << 1) + si0 | 1];
+                        
+                        if(y3<y2)break;
+                        
+                        m23=(x3 - x2)/(y3 - y2);
+                        b23=x2 - m23*y2;
+                        
+                        y2|=0;
+                        y3|=0;
+                        
+                        if(y3>sy1)y3=sy1;
+                    }
+                    if(y3<y2)break;
+                    
+                    if(y1 < y3)ny=y1;
+                    else ny=y3;
+                    ny=ny|0;
+                    while(y<=ny){
+                        x0=m01*y + b01|0;
+                        x1=m23*y + b23|0;
+                        //if(x0 > x1){t=x0;x0=x1;x1=t;}
+                        
+                        nx=x1 - x0;
+                        l=y*ppl + x0;
+                        while(nx--)pp[l++]=c;
+                        y++;
+                    }
+                }while(y<sy1);
+                //break;
+                
+                
+                //si0=si << 3;
+                //for(i=0; i<4; i++, si0++)qi[i]=si0;
+                
+                
+            }
+            
+            si--;
+            continue;
+        }
     }
-    var init=function(){
-      var can=document.getElementsByTagName("canvas")[0];
-      wid=can.width; hei=can.height;
-      ctx=can.getContext("2d");
-      imd=ctx.createImageData(wid, hei);
-      setInterval(anim,25);
-    }
-  </script>
-</head><body onload="init()">
-<canvas width="256" height="256">:(</canvas>
+    
+    //console.log(maxi+"    "+si+"    "+a);
+}
+
+var gmaxa=80;
+
+var anim=function(){
+    var lt=ms1 - ms0;
+    ms0=Date.now();
+    var fd=(ms0 + lt - ms1)*1e-3;
+    
+    var x=wid/2 + Math.sin(ms0*2.2e-6)*1000,
+        y=hei/2 + Math.sin(ms0*2.5e-6)*1000,
+        s=(1.1 + Math.sin(ms0*5e-5))*1e6, c=(1.1 + Math.cos(ms0*2.1e-5))*1e6;
+    
+    rq([x+s,y+c, x-c,y+s, x-s,y-c, x+c,y-s], [0.5, 0.6, 0.3], canp, gmaxa);
+    
+    ctx.putImageData(cani, 0, 0);
+    
+    ms1=Date.now();
+    div.innerHTML=" "+(ms1 - ms0);
+    
+    //if(ms1 - ms0 < 15)gmaxa=gmaxa*0.9|0;
+    //else if (ms1 - ms0 > 16)gmaxa=gmaxa*1.11|0;
+};
+
+
+var orient=function(e){
+    doa=e.alpha;
+    dob=e.beta;
+    dog=e.gamma;
+}
+
+
+var init, div;
+init=function(){
+    body=document.getElementsByTagName('body')[0];
+    body.innerHTML='';
+    
+    wid=body.offsetWidth-20;
+    hei=body.offsetHeight-30;
+    
+    body.innerHTML='<canvas width="'+wid+'" height="'+hei+'">:(</canvas><div></div>';
+    var canv=document.getElementsByTagName('canvas')[0];
+    div=document.getElementsByTagName('div')[0];
+    
+    //var canv=document.createElement("canvas");
+    //canv.setAttribute("width",wid);
+    //canv.setAttribute("height",hei);
+    
+    ctx=canv.getContext('2d');
+    wid=canv.width; hei=canv.height;
+    cani=ctx.createImageData(wid, hei), canp=cani.data;
+    bkgi=ctx.createImageData(wid, hei), bkgp=bkgi.data;
+    for(var i=canp.length - 1; i>0; i-=4)canp[i]=bkgp[i]=255;
+    
+    if(ahand)clearInterval(ahand);
+    ahand=setInterval(anim, 25);
+    
+    //document.addEventListener("mousedown",mdown,false);
+    //document.addEventListener("contextmenu",function(){return false;},false);
+    document.addEventListener("contextmenu",function(e){e.preventDefault();return false;},false);
+    
+    window.addEventListener("deviceorientation",orient,false);
+}
+</script>
+</head>
+<body onload="init();">
+<!--<canvas width="320" height="480">:(</canvas>-->
 </body>
+</html>
